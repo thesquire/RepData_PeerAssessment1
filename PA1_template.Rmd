@@ -1,25 +1,97 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "5CourseProject1"
+author: "The Squire"
+date: "Friday, July 17, 2015"
+output: html_document
 ---
 
+First I will load a package to use the unzip function and then download the file from the internet and create a folder in the working directory if it doesn't already exist.  Finally I will set my working directory to my project folder
 
-## Loading and preprocessing the data
+```{r}
+library(downloader)
 
+if (!file.exists("./5CourseProject1")){
+        fileURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+        download(fileURL, dest = "5CourseProject1.zip", mode = "wb")
+        unzip("5CourseProject1.zip", exdir = "./5CourseProject1")
+        dateDownloaded <- date()
+}
 
+```
 
-## What is mean total number of steps taken per day?
+Now I will calculate the sum of steps by date and display those totals
 
+```{r}
+dat <- read.csv("./5CourseProject1/activity.csv", na.strings = "NA")
 
+dateSteps <- tapply(dat$steps, dat$date, sum)
+dateSteps
+```
 
-## What is the average daily activity pattern?
+Plot the frequency of days with steps in intervals of 5,000:
 
+```{r}
+hist(dateSteps, breaks = c(0, 5000, 10000, 15000, 20000, 25000), main = "Typical Daily Step Counts", xlab = "Total Steps", ylab = "Number of Days")
+```
 
+Display mean and median of the total number of steps taken per day
 
-## Imputing missing values
+```{r}
+mean(dateSteps, na.rm = TRUE)
+median(dateSteps, na.rm = TRUE)
+```
 
+Calculate mean at each time interval, show time series plot, and display max average
 
+```{r}
+dat$interval <- as.factor(dat$interval)
+intervalSteps <- tapply(dat$steps, dat$interval, mean, na.rm = TRUE)
+plot(intervalSteps, type = 'l', main = "Average Steps per 5 Minute Interval", xlab = "Number of 5 Minute Intervals", ylab = "Average Steps Taken")
+max(intervalSteps)
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Calculate the number of NAs in steps measurements and then replace them with mean for that interval
+
+```{r}
+sum(is.na(dat$steps))
+
+datClean <- dat
+for (i in 1:length(datClean$steps)){
+        if (is.na(datClean$steps[i])){
+                a <- as.character(datClean$interval[i])
+                datClean$steps[i] <- intervalSteps[a]
+        }
+}
+```
+
+Plot the frequency of days with steps in intervals of 5,000 and display mean and median for number of steps per day:
+
+```{r}
+dateCleanSteps <- tapply(datClean$steps, datClean$date, sum)
+hist(dateCleanSteps, breaks = c(0, 5000, 10000, 15000, 20000, 25000), main = "Typical Daily Step Counts", xlab = "Total Steps", ylab = "Number of Days")
+
+mean(dateCleanSteps)
+median(dateCleanSteps)
+```
+
+Calculate day of the week and plot weekday versus weekend steps
+
+```{r}
+datTemp <- datClean
+datTemp$date <- as.character(datTemp$date)
+datTemp$date <- as.POSIXlt(datTemp$date)
+for (i in 1:length(datTemp$date)){
+        datTemp$day[i] = weekdays(datTemp$date[i])
+        if ((datTemp$day[i] == "Saturday") | (datTemp$day[i] == "Sunday")){
+                datTemp$daycat[i] = "weekend"
+        } else {
+                datTemp$daycat[i] = "weekday"
+        }
+}
+datTemp$daycat = as.factor(datTemp$daycat)
+
+library(ggplot2)
+
+weekSteps <- tapply(datTemp$steps, datTemp$interval, mean)
+qplot(interval, steps, data = datTemp, facets = daycat~., main = "Weekday versus Weekend Steps", xlab = "Number of 5 Minute Intervals", ylab = "Average Steps Taken") + geom_line()
+```
